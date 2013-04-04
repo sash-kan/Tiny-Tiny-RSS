@@ -354,23 +354,23 @@ class Feeds extends Handler_Protected {
 				if ($line["marked"] == "t" || $line["marked"] == "1") {
 					$marked_pic = "<img id=\"FMPIC-$id\"
 						src=\"images/mark_set.svg\"
-						class=\"markedPic\" alt=\"Unstar article\"
+						class=\"markedPic\" alt=\"".__('Unstar article')."\"
 						onclick='javascript:toggleMark($id)'>";
 				} else {
 					$marked_pic = "<img id=\"FMPIC-$id\"
 						src=\"images/mark_unset.svg\"
-						class=\"markedPic\" alt=\"Star article\"
+						class=\"markedPic\" alt=\"".__('Star article')."\"
 						onclick='javascript:toggleMark($id)'>";
 				}
 
 				if ($line["published"] == "t" || $line["published"] == "1") {
 					$published_pic = "<img id=\"FPPIC-$id\" src=\"images/pub_set.svg\"
 						class=\"markedPic\"
-						alt=\"Unpublish article\" onclick='javascript:togglePub($id)'>";
+						alt=\"".__('Unpublish article')."\" onclick='javascript:togglePub($id)'>";
 				} else {
 					$published_pic = "<img id=\"FPPIC-$id\" src=\"images/pub_unset.svg\"
 						class=\"markedPic\"
-						alt=\"Publish article\" onclick='javascript:togglePub($id)'>";
+						alt=\"".__('Publish article')."\" onclick='javascript:togglePub($id)'>";
 				}
 
 #				$content_link = "<a target=\"_blank\" href=\"".$line["link"]."\">" .
@@ -681,7 +681,7 @@ class Feeds extends Handler_Protected {
 
 					$tags_str = format_tags_string($line["tags"], $id);
 
-					$reply['content'] .= "<img src='images/tag.png' alt='Tags' title='Tags'>
+					$reply['content'] .= "<img src='images/tag.png' alt=".__('Tags')." title=".__('Tags').">
 						<span id=\"ATSTR-$id\">$tags_str</span>
 						<a title=\"".__('Edit tags for this article')."\"
 						href=\"#\" onclick=\"editArticleTags($id, $feed_id, true)\">(+)</a>";

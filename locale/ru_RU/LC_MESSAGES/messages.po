@@ -98,7 +98,7 @@ msgstr "Пользователь"
 
 #: backend.php:100
 msgid "Power User"
-msgstr "Активный пользователь"
+msgstr "Опытный пользователь"
 
 #: backend.php:101
 msgid "Administrator"
@@ -435,7 +435,7 @@ msgstr "Вернуться к Tiny Tiny RSS"
 
 #: register.php:217
 msgid "Your temporary password will be sent to the specified email. Accounts, which were not logged in once, are erased automatically 24 hours after temporary password is sent."
-msgstr "Временный пароль будет отправлен на указанный адрес электропочты. Если учётная запись не будет активирована в течение 24 часов, то она будет удалена."
+msgstr "Временный пароль будет отправлен на указанный адрес электронной почты. Если учётная запись не будет активирована в течение 24 часов, то она будет удалена."
 
 #: register.php:223
 msgid "Desired login:"
@@ -448,7 +448,7 @@ msgstr "Проверить доступность"
 #: register.php:228
 #: classes/handler/public.php:776
 msgid "Email:"
-msgstr "Электропочта:"
+msgstr "Электронная почта:"
 
 #: register.php:231
 #: classes/handler/public.php:781
@@ -523,7 +523,7 @@ msgstr "Помеченные статьи"
 
 #: include/functions.php:1837
 msgid "Published articles"
-msgstr "Опубликованные"
+msgstr "Опубликованные статьи"
 
 #: include/functions.php:1839
 msgid "Fresh articles"
@@ -632,7 +632,7 @@ msgstr "Выбрать статью под курсором"
 
 #: include/functions.php:1929
 msgid "Email article"
-msgstr "Отправить по электропочте"
+msgstr "Отправить по электронной почте"
 
 #: include/functions.php:1930
 msgid "Close/collapse article"
@@ -901,12 +901,12 @@ msgstr "Вернуться к настройкам"
 #: classes/opml.php:270
 #, php-format
 msgid "Adding feed: %s"
-msgstr "Добавляю поток: %s"
+msgstr "Добавляю канал: %s"
 
 #: classes/opml.php:281
 #, php-format
 msgid "Duplicate feed: %s"
-msgstr "Поток-дубль: %s"
+msgstr "Канал-дубль: %s"
 
 #: classes/opml.php:295
 #, php-format
@@ -1234,7 +1234,7 @@ msgstr "Опции"
 
 #: classes/pref/users.php:164
 msgid "E-mail: "
-msgstr "Электропочта: "
+msgstr "Электронная почта: "
 
 #: classes/pref/users.php:240
 #, php-format
@@ -1355,7 +1355,7 @@ msgstr "<b>Подсказка:</b> если канал требует автор
 #: classes/pref/feeds.php:622
 #: classes/pref/feeds.php:838
 msgid "Hide from Popular feeds"
-msgstr "Не показывать в списке популярных каналов"
+msgstr "Не показывать в списке Популярных каналов"
 
 #: classes/pref/feeds.php:634
 #: classes/pref/feeds.php:844
@@ -1482,7 +1482,7 @@ msgstr "Ваш OPML может быть опубликован и впослед
 
 #: classes/pref/feeds.php:1401
 msgid "Published OPML does not include your Tiny Tiny RSS settings, feeds that require authentication or feeds hidden from Popular feeds."
-msgstr "Опубликованный OPML не включает ни ваши настройки Tiny Tiny RSS, ни скрытые, ни требующие авторизации потоки."
+msgstr "Опубликованный OPML не включает ни ваши настройки Tiny Tiny RSS, ни скрытые от общего доступа, ни требующие авторизации каналы."
 
 #: classes/pref/feeds.php:1403
 msgid "Public OPML URL"
@@ -1506,11 +1506,11 @@ msgstr "Зарегистрировать сайт в роли RSS агрегат
 
 #: classes/pref/feeds.php:1431
 msgid "Published & shared articles / Generated feeds"
-msgstr "Опубликованные и общедоступные статьи / Сгенерированные потоки"
+msgstr "Опубликованные и общедоступные статьи / Сгенерированные каналы"
 
 #: classes/pref/feeds.php:1433
 msgid "Published articles and generated feeds"
-msgstr "Опубликованные статьи и сгенерированные потоки"
+msgstr "Опубликованные статьи и сгенерированные каналы"
 
 #: classes/pref/feeds.php:1435
 msgid "Published articles are exported as a public RSS feed and can be subscribed by anyone who knows the URL specified below."
@@ -1648,11 +1648,11 @@ msgstr "Отметить все статьи в почтовом обзоре к
 
 #: classes/pref/prefs.php:35
 msgid "Enable e-mail digest"
-msgstr "Включить отправку обзора на электропочту"
+msgstr "Включить отправку обзора на электронную почту"
 
 #: classes/pref/prefs.php:35
 msgid "This option enables sending daily digest of new (and unread) headlines on your configured e-mail address"
-msgstr "Эта опция разрешает отправку ежедневного обзора новых (и непрочитанных) заголовков на ваш адрес электропочты"
+msgstr "Эта опция разрешает отправку ежедневного обзора новых (и непрочитанных) заголовков на ваш адрес электронной почты"
 
 #: classes/pref/prefs.php:36
 msgid "Try to send digests around specified time"
@@ -1823,7 +1823,7 @@ msgstr "Полное имя"
 
 #: classes/pref/prefs.php:238
 msgid "E-mail"
-msgstr "Электропочта"
+msgstr "Электронная почта"
 
 #: classes/pref/prefs.php:244
 msgid "Access level"
@@ -2176,7 +2176,7 @@ msgstr "Переместить назад"
 #: plugins/mailto/init.php:28
 #: plugins/mail/init.php:28
 msgid "Forward by email"
-msgstr "Отправить по электропочте"
+msgstr "Переслать по электронной почте"
 
 #: classes/feeds.php:134
 msgid "Feed:"
@@ -2295,7 +2295,7 @@ msgstr "Метки:"
 
 #: classes/handler/public.php:457
 msgid "Shared article will appear in the Published feed."
-msgstr "Опубликованная статья появится в канале \"Опубликованные\""
+msgstr "Статья, которой вы поделились, появится в канале \"Опубликованные\""
 
 #: classes/handler/public.php:459
 msgid "Share"
@@ -2303,7 +2303,7 @@ msgstr "Поделиться"
 
 #: classes/handler/public.php:481
 msgid "Not logged in"
-msgstr "Вы нее вошли"
+msgstr "Вы не вошли"
 
 #: classes/handler/public.php:548
 msgid "Incorrect username or password"
@@ -2360,7 +2360,7 @@ msgstr "Восстановление пароля"
 
 #: classes/handler/public.php:764
 msgid "You will need to provide valid account name and email. New password will be sent on your email address."
-msgstr "Укажите действительные имя учётной записи и адрес электропочты. Новый пароль будет выслан на этот адрес."
+msgstr "Укажите действительные имя учётной записи и адрес электронной почты. Новый пароль будет выслан на этот адрес."
 
 #: classes/handler/public.php:796
 msgid "Some of the required form parameters are missing or incorrect."
@@ -2374,7 +2374,7 @@ msgstr "Назад"
 
 #: classes/handler/public.php:822
 msgid "Sorry, login and email combination not found."
-msgstr "Извините, такая комбинация имени учётной записи и адреса электропочты не найдена."
+msgstr "Извините, такая комбинация имени учётной записи и адреса электронной почты не найдена."
 
 #: classes/handler/public.php:842
 msgid "Your access level is insufficient to run this script."
@@ -2420,7 +2420,7 @@ msgstr "Некорректный формат документа."
 
 #: plugins/googlereaderimport/init.php:328
 msgid "Import starred or shared items from Google Reader"
-msgstr "Импортировать помеченные (starred) или общие (shared) статьи из Google Reader"
+msgstr "Импортировать помеченные (starred) или общедоступные (shared) статьи из Google Reader"
 
 #: plugins/googlereaderimport/init.php:332
 msgid "Paste your starred.json or shared.json into the form below."
@@ -2448,7 +2448,7 @@ msgstr "Нажмите ссылку для вызова вашего почто�
 
 #: plugins/mailto/init.php:78
 msgid "Forward selected article(s) by email."
-msgstr "Переслать выбранные статьи по электропочте."
+msgstr "Переслать выбранные статьи по электронной почте."
 
 #: plugins/mailto/init.php:81
 msgid "You should be able to edit the message before sending in your mail client."
@@ -2512,7 +2512,7 @@ msgstr "Подключить экземпляр"
 
 #: plugins/instances/init.php:307
 msgid "You can connect other instances of Tiny Tiny RSS to this one to share Popular feeds. Link to this instance of Tiny Tiny RSS by using this URL:"
-msgstr "Вы можете подключить другие экземпляры Tiny Tiny RSS к своему, для объединения популярных каналов. Подклчить экземпляр Tiny Tiny RSS по адресу:"
+msgstr "Вы можете подключить другие экземпляры Tiny Tiny RSS к своему, для общего доступа к Популярным каналам. Подклчить экземпляр Tiny Tiny RSS по адресу:"
 
 #: plugins/instances/init.php:317
 msgid "Last connected"
@@ -2557,7 +2557,7 @@ msgstr "Подписаться в Tiny Tiny RSS"
 
 #: plugins/bookmarklets/init.php:34
 msgid "Use this bookmarklet to publish arbitrary pages using Tiny Tiny RSS"
-msgstr "С помощью этой закладки можно поделиться произвольной страницей в Tiny Tiny RSS"
+msgstr "С помощью этой закладки можно опубликовать произвольную страницу в Tiny Tiny RSS"
 
 #: plugins/close_button/init.php:24
 msgid "Close article"
@@ -2606,7 +2606,7 @@ msgstr "ВЫКЛ"
 
 #: plugins/mobile/prefs.php:39
 msgid "Browse categories like folders"
-msgstr "Показывать категории как каталоги"
+msgstr "Показывать категории как папки"
 
 #: plugins/mobile/prefs.php:45
 msgid "Show images in posts"
@@ -3220,11 +3220,11 @@ msgstr "Сгенерированные адреса удалены."
 
 #: js/prefs.js:1538
 msgid "This will invalidate all previously shared article URLs. Continue?"
-msgstr "Все адреса опубликованных статей будут аннулированы. Продолжить?"
+msgstr "Все адреса общедоступных статей будут аннулированы. Продолжить?"
 
 #: js/prefs.js:1548
 msgid "Shared URLs cleared."
-msgstr "Опубликованные адреса удалены."
+msgstr "Общедоступные адреса удалены."
 
 #: js/prefs.js:1654
 msgid "Label Editor"
@@ -3438,7 +3438,7 @@ msgstr "Пожалуйста, выберите файл."
 #: plugins/mailto/init.js:21
 #: plugins/mail/mail.js:21
 msgid "Forward article by email"
-msgstr "Переслать статью по электропочте"
+msgstr "Переслать статью по электронной почте"
 
 #: plugins/instances/instances.js:10
 msgid "Link Instance"

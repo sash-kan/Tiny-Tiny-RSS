@@ -254,7 +254,7 @@ msgstr "Сначала старые"
 
 #: index.php:188
 msgid "Title"
-msgstr "Заголовок"
+msgstr "По заголовку"
 
 #: index.php:192
 #: index.php:241

@@ -402,7 +402,7 @@ div.hlFeed a:hover {
 	color : #4684ff;
 }
 
-img.markedPic {
+img.markedPic, img.pubPic {
 	cursor : pointer;
 	vertical-align : middle;
 }
@@ -856,6 +856,7 @@ img.feedIcon, img.tinyFeedIcon {
 	width : 16px;
 	height : 16px;
 	vertical-align : middle;
+	display : inline-block;
 }
 
 .dijitDialog .dijitToolbar {

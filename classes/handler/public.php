@@ -857,7 +857,7 @@ class Handler_Public extends Handler {
 		<body>
 			<script type='text/javascript'>
 			function confirmOP() {
-				return confirm("Update the database?");
+				return confirm(<?php echo __("Update the database?") ?>);
 			}
 			</script>
 
@@ -874,41 +874,41 @@ class Handler_Public extends Handler {
 				if ($op == "performupdate") {
 					if ($updater->isUpdateRequired()) {
 
-						print "<h2>Performing updates</h2>";
+						print __("<h2>Performing updates</h2>");
 
-						print "<h3>Updating to schema version " . SCHEMA_VERSION . "</h3>";
+						printf (__("<h3>Updating to schema version %d</h3>"), SCHEMA_VERSION);
 
 						print "<ul>";
 
 						for ($i = $updater->getSchemaVersion() + 1; $i <= SCHEMA_VERSION; $i++) {
-							print "<li>Performing update up to version $i...";
+							print "<li>" . __("Performing update up to version") . "$i...";
 
 							$result = $updater->performUpdateTo($i);
 
 							if (!$result) {
 								print "<span class='err'>FAILED!</span></li></ul>";
 
-								print_warning("One of the updates failed. Either retry the process or perform updates manually.");
+								print_warning(__("One of the updates failed. Either retry the process or perform updates manually."));
 								print "<p><form method=\"GET\" action=\"index.php\">
 								<input type=\"submit\" value=\"".__("Return to Tiny Tiny RSS")."\">
 								</form>";
 
 								break;
 							} else {
-								print "<span class='ok'>OK!</span></li>";
+								print "<span class='ok'>" . __("OK!") . "</span></li>";
 							}
 						}
 
 						print "</ul>";
 
-						print_notice("Your Tiny Tiny RSS database is now updated to the latest version.");
+						print_notice(__("Your Tiny Tiny RSS database is now updated to the latest version."));
 
 						print "<p><form method=\"GET\" action=\"index.php\">
 						<input type=\"submit\" value=\"".__("Return to Tiny Tiny RSS")."\">
 						</form>";
 
 					} else {
-						print "<h2>Your database is up to date.</h2>";
+						print __("<h2>Your database is up to date.</h2>");
 
 						print "<p><form method=\"GET\" action=\"index.php\">
 						<input type=\"submit\" value=\"".__("Return to Tiny Tiny RSS")."\">
@@ -917,14 +917,14 @@ class Handler_Public extends Handler {
 				} else {
 					if ($updater->isUpdateRequired()) {
 
-						print "<h2>Database update required</h2>";
+						print __("<h2>Database update required</h2>");
 
 						print "<h3>";
-						printf("Your Tiny Tiny RSS database needs update to the latest version: %d to %d.",
+						printf(__("Your Tiny Tiny RSS database needs update to the latest version: %d to %d."),
 							$updater->getSchemaVersion(), SCHEMA_VERSION);
 						print "</h3>";
 
-						print_warning("Please backup your database before proceeding.");
+						print_warning(__("Please backup your database before proceeding."));
 
 						print "<form method='POST'>
 							<input type='hidden' name='subop' value='performupdate'>

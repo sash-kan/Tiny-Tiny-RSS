@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-04-11 22:02+0400\n"
+"POT-Creation-Date: 2013-04-11 23:15+0400\n"
 "PO-Revision-Date: 2009-05-29 14:38+0300\n"
 "Last-Translator: alexander barakin aka sash-kan <alex@barak.in>\n"
 "Language-Team: Русский <ru@li.org>\n"
@@ -1134,9 +1134,55 @@ msgstr "Извините, такая комбинация имени учётн�
 msgid "Your access level is insufficient to run this script."
 msgstr "В доступе отказано — недостаточно привилегий."
 
+#: classes/handler/public.php:860
+msgid "Update the database?"
+msgstr "Обновить базу данных?"
+
 #: classes/handler/public.php:866
 msgid "Database Updater"
 msgstr "Обновление базы данных"
+
+#: classes/handler/public.php:877
+msgid "<h2>Performing updates</h2>"
+msgstr "<h2>Выполняется обновление</h2>"
+
+#: classes/handler/public.php:879
+#, php-format
+msgid "<h3>Updating to schema version %d</h3>"
+msgstr "<h3>Обновление базы данных до версии %d</h3>"
+
+#: classes/handler/public.php:884
+msgid "Performing update up to version"
+msgstr "Выполняется обновление до версии"
+
+#: classes/handler/public.php:891
+msgid "One of the updates failed. Either retry the process or perform updates manually."
+msgstr "Одно из обновлений прошло неудачно. Повторите процесс или выполните обновление вручную."
+
+#: classes/handler/public.php:898
+msgid "OK!"
+msgstr "ОК!"
+
+#: classes/handler/public.php:904
+msgid "Your Tiny Tiny RSS database is now updated to the latest version."
+msgstr "Ваша база данных Tiny Tiny RSS обновлена до последней версии."
+
+#: classes/handler/public.php:911
+msgid "<h2>Your database is up to date.</h2>"
+msgstr "<h2>Ваша баз данных — в актуальном состоянии.</h2>"
+
+#: classes/handler/public.php:920
+msgid "<h2>Database update required</h2>"
+msgstr "<h2>Необходимо обновить базу данных</h2>"
+
+#: classes/handler/public.php:923
+#, php-format
+msgid "Your Tiny Tiny RSS database needs update to the latest version: %d to %d."
+msgstr "Вашу базу данных Tiny Tiny RSS необходимо обновить до последней версии (%d до %d)."
+
+#: classes/handler/public.php:927
+msgid "Please backup your database before proceeding."
+msgstr "Пожалуйста, сделайте резервную копию вашей базы данных перед тем, как продолжить."
 
 #: classes/handler/public.php:931
 msgid "Perform updates"

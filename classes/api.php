@@ -110,11 +110,6 @@ class API extends Handler {
 		print $this->wrap(self::STATUS_OK, getAllCounters($this->link));
 	}
 
-	function getFeedStats() {
-		$feeds = $this->api_get_feed_stats($this->link);
-		print $this->wrap(self::STATUS_OK, $feeds);
-	}
-
 	function getFeeds() {
 		$cat_id = db_escape_string($this->link, $_REQUEST["cat_id"]);
 		$unread_only = sql_bool_to_bool($_REQUEST["unread_only"]);
@@ -469,8 +464,19 @@ class API extends Handler {
 
 	}
 
-	function index() {
-		print $this->wrap(self::STATUS_ERR, array("error" => 'UNKNOWN_METHOD'));
+	function index($method) {
+		global $pluginhost;
+
+		$plugin = $pluginhost->get_api_method(strtolower($method));
+
+		if ($plugin && method_exists($plugin, $method)) {
+			$reply = $plugin->$method();
+
+			print $this->wrap($reply[0], $reply[1]);
+
+		} else {
+			print $this->wrap(self::STATUS_ERR, array("error" => 'UNKNOWN_METHOD', "method" => $method));
+		}
 	}
 
 	function shareToPublished() {
@@ -484,38 +490,6 @@ class API extends Handler {
 			print $this->wrap(self::STATUS_ERR, array("error" => 'Publishing failed'));
 		}
 	}
-
-	static function api_get_feed_stats($link) {
-
-        $feeds = array();
-
-        $result = db_query($link, "SELECT ttrss_feeds.id, ttrss_feeds.title,".
-                           " MIN(ttrss_entries.id) AS first, MAX(ttrss_entries.id) AS last,".
-                           " COUNT(ttrss_entries.id) AS total".
-                           " FROM ttrss_entries, ttrss_user_entries, ttrss_feeds".
-                           " WHERE ttrss_user_entries.feed_id = ttrss_feeds.id".
-                           " AND ttrss_user_entries.ref_id = ttrss_entries.id".
-                           " AND ttrss_user_entries.owner_uid = ".$_SESSION["uid"].
-                           " GROUP BY ttrss_feeds.title");
-
-        while ($line = db_fetch_assoc($result)) {
-
-            $unread = getFeedUnread($link, $line["id"]);
-
-            $row = array(
-                "id" => (int)$line["id"],
-                "title" => $line["title"],
-                "first" => (int)$line["first"],
-                "last" => (int)$line["last"],
-                "total" => (int)$line["total"],
-                "unread" => (int)$unread
-            );
-
-            array_push($feeds, $row);
-        }
-
-        return $feeds;
-}
 
 	static function api_get_feeds($link, $cat_id, $unread_only, $limit, $offset, $include_nested = false) {
 

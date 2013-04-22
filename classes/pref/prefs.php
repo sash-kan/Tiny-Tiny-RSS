@@ -11,8 +11,8 @@ class Pref_Prefs extends Handler_Protected {
 		return array_search($method, $csrf_ignored) !== false;
 	}
 
-	function __construct($link, $args) {
-		parent::__construct($link, $args);
+	function __construct($args) {
+		parent::__construct($args);
 
 		$this->pref_sections = array(
 			1 => __('General'),
@@ -79,8 +79,7 @@ class Pref_Prefs extends Handler_Protected {
 			return;
 		}
 
-		global $pluginhost;
-		$authenticator = $pluginhost->get_plugin($_SESSION["auth_module"]);
+		$authenticator = PluginHost::getInstance()->get_plugin($_SESSION["auth_module"]);
 
 		if (method_exists($authenticator, "change_password")) {
 			print $authenticator->change_password($_SESSION["uid"], $old_pw, $new_pw);
@@ -90,9 +89,6 @@ class Pref_Prefs extends Handler_Protected {
 	}
 
 	function saveconfig() {
-
-		$_SESSION["prefs_cache"] = false;
-
 		$boolean_prefs = explode(",", $_POST["boolean_prefs"]);
 
 		foreach ($boolean_prefs as $pref) {
@@ -103,13 +99,13 @@ class Pref_Prefs extends Handler_Protected {
 
 		foreach (array_keys($_POST) as $pref_name) {
 
-			$pref_name = db_escape_string($this->link, $pref_name);
-			$value = db_escape_string($this->link, $_POST[$pref_name]);
+			$pref_name = $this->dbh->escape_string($pref_name);
+			$value = $this->dbh->escape_string($_POST[$pref_name]);
 
 			if ($pref_name == 'DIGEST_PREFERRED_TIME') {
-				if (get_pref($this->link, 'DIGEST_PREFERRED_TIME') != $value) {
+				if (get_pref('DIGEST_PREFERRED_TIME') != $value) {
 
-					db_query($this->link, "UPDATE ttrss_users SET
+					$this->dbh->query("UPDATE ttrss_users SET
 						last_digest_sent = NULL WHERE id = " . $_SESSION['uid']);
 
 				}
@@ -124,7 +120,7 @@ class Pref_Prefs extends Handler_Protected {
 					$need_reload = true;
 				}
 			} else {
-				set_pref($this->link, $pref_name, $value);
+				set_pref($pref_name, $value);
 			}
 
 		}
@@ -138,13 +134,13 @@ class Pref_Prefs extends Handler_Protected {
 
 	function getHelp() {
 
-		$pref_name = db_escape_string($this->link, $_REQUEST["pn"]);
+		$pref_name = $this->dbh->escape_string($_REQUEST["pn"]);
 
-		$result = db_query($this->link, "SELECT help_text FROM ttrss_prefs
+		$result = $this->dbh->query("SELECT help_text FROM ttrss_prefs
 			WHERE pref_name = '$pref_name'");
 
-		if (db_num_rows($result) > 0) {
-			$help_text = db_fetch_result($result, 0, "help_text");
+		if ($this->dbh->num_rows($result) > 0) {
+			$help_text = $this->dbh->fetch_result($result, 0, "help_text");
 			print $help_text;
 		} else {
 			printf(__("Unknown option: %s"), $pref_name);
@@ -153,12 +149,12 @@ class Pref_Prefs extends Handler_Protected {
 
 	function changeemail() {
 
-		$email = db_escape_string($this->link, $_POST["email"]);
-		$full_name = db_escape_string($this->link, $_POST["full_name"]);
+		$email = $this->dbh->escape_string($_POST["email"]);
+		$full_name = $this->dbh->escape_string($_POST["full_name"]);
 
 		$active_uid = $_SESSION["uid"];
 
-		db_query($this->link, "UPDATE ttrss_users SET email = '$email',
+		$this->dbh->query("UPDATE ttrss_users SET email = '$email',
 			full_name = '$full_name' WHERE id = '$active_uid'");
 
 		print __("Your personal data has been saved.");
@@ -176,10 +172,10 @@ class Pref_Prefs extends Handler_Protected {
 			$profile_qpart = "profile IS NULL";
 		}
 
-		db_query($this->link, "DELETE FROM ttrss_user_prefs
+		$this->dbh->query("DELETE FROM ttrss_user_prefs
 			WHERE $profile_qpart AND owner_uid = ".$_SESSION["uid"]);
 
-		initialize_user_prefs($this->link, $_SESSION["uid"], $_SESSION["profile"]);
+		initialize_user_prefs($_SESSION["uid"], $_SESSION["profile"]);
 
 		echo __("Your preferences are now set to default values.");
 	}
@@ -225,13 +221,13 @@ class Pref_Prefs extends Handler_Protected {
 
 		print "<h2>" . __("Personal data") . "</h2>";
 
-		$result = db_query($this->link, "SELECT email,full_name,otp_enabled,
+		$result = $this->dbh->query("SELECT email,full_name,otp_enabled,
 			access_level FROM ttrss_users
 			WHERE id = ".$_SESSION["uid"]);
 
-		$email = htmlspecialchars(db_fetch_result($result, 0, "email"));
-		$full_name = htmlspecialchars(db_fetch_result($result, 0, "full_name"));
-		$otp_enabled = sql_bool_to_bool(db_fetch_result($result, 0, "otp_enabled"));
+		$email = htmlspecialchars($this->dbh->fetch_result($result, 0, "email"));
+		$full_name = htmlspecialchars($this->dbh->fetch_result($result, 0, "full_name"));
+		$otp_enabled = sql_bool_to_bool($this->dbh->fetch_result($result, 0, "otp_enabled"));
 
 		print "<tr><td width=\"40%\">".__('Full name')."</td>";
 		print "<td class=\"prefValue\"><input dojoType=\"dijit.form.ValidationTextBox\" name=\"full_name\" required=\"1\"
@@ -242,7 +238,7 @@ class Pref_Prefs extends Handler_Protected {
 
 		if (!SINGLE_USER_MODE && !$_SESSION["hide_hello"]) {
 
-			$access_level = db_fetch_result($result, 0, "access_level");
+			$access_level = $this->dbh->fetch_result($result, 0, "access_level");
 			print "<tr><td width=\"40%\">".__('Access level')."</td>";
 			print "<td>" . $access_level_names[$access_level] . "</td></tr>";
 		}
@@ -258,10 +254,7 @@ class Pref_Prefs extends Handler_Protected {
 		print "</form>";
 
 		if ($_SESSION["auth_module"]) {
-			global $pluginhost;
-
-			$authenticator = $pluginhost->get_plugin($_SESSION["auth_module"]);
-
+			$authenticator = PluginHost::getInstance()->get_plugin($_SESSION["auth_module"]);
 		} else {
 			$authenticator = false;
 		}
@@ -270,11 +263,11 @@ class Pref_Prefs extends Handler_Protected {
 
 			print "<h2>" . __("Password") . "</h2>";
 
-			$result = db_query($this->link, "SELECT id FROM ttrss_users
+			$result = $this->dbh->query("SELECT id FROM ttrss_users
 				WHERE id = ".$_SESSION["uid"]." AND pwd_hash
 				= 'SHA1:5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8'");
 
-			if (db_num_rows($result) != 0) {
+			if ($this->dbh->num_rows($result) != 0) {
 				print format_warning(__("Your password is at default value, please change it."), "default_pass_warning");
 			}
 
@@ -399,8 +392,8 @@ class Pref_Prefs extends Handler_Protected {
 							parameters: dojo.objectToQuery(this.getValues()),
 							onComplete: function(transport) {
 								notify('');
-								if (transport.responseText.indexOf('ERROR: ') == 0) {
-									notify_error(transport.responseText.replace('ERROR: ', ''));
+								if (transport.responseText.indexOf('ERROR:') == 0) {
+									notify_error(transport.responseText.replace('ERROR:', ''));
 								} else {
 									window.location.reload();
 								}
@@ -416,11 +409,13 @@ class Pref_Prefs extends Handler_Protected {
 					print "<td class=\"prefValue\"><input dojoType=\"dijit.form.ValidationTextBox\" type=\"password\" required=\"1\"
 						name=\"password\"></td></tr>";
 
-					print "<tr><td colspan=\"2\">";
+					print "<tr><td width=\"40%\">".__("Enter the generated one time password")."</td>";
 
-					print "<input dojoType=\"dijit.form.CheckBox\" required=\"1\"
-						type=\"checkbox\" id=\"enable_otp\" name=\"enable_otp\"/> ";
-					print "<label for=\"enable_otp\">".__("I have scanned the code and would like to enable OTP")."</label>";
+					print "<td class=\"prefValue\"><input dojoType=\"dijit.form.ValidationTextBox\" autocomplete=\"off\"
+						required=\"1\"
+						name=\"otp\"></td></tr>";
+
+					print "<tr><td colspan=\"2\">";
 
 					print "</td></tr><tr><td colspan=\"2\">";
 
@@ -437,8 +432,7 @@ class Pref_Prefs extends Handler_Protected {
 			}
 		}
 
-		global $pluginhost;
-		$pluginhost->run_hooks($pluginhost::HOOK_PREFS_TAB_SECTION,
+		PluginHost::getInstance()->run_hooks(PluginHost::HOOK_PREFS_TAB_SECTION,
 			"hook_prefs_tab_section", "prefPrefsAuth");
 
 		print "</div>"; #pane
@@ -478,10 +472,10 @@ class Pref_Prefs extends Handler_Protected {
 		}
 
 		if ($_SESSION["profile"]) {
-			initialize_user_prefs($this->link, $_SESSION["uid"], $_SESSION["profile"]);
+			initialize_user_prefs($_SESSION["uid"], $_SESSION["profile"]);
 			$profile_qpart = "profile = '" . $_SESSION["profile"] . "'";
 		} else {
-			initialize_user_prefs($this->link, $_SESSION["uid"]);
+			initialize_user_prefs($_SESSION["uid"]);
 			$profile_qpart = "profile IS NULL";
 		}
 
@@ -492,7 +486,7 @@ class Pref_Prefs extends Handler_Protected {
 
 		$access_query = 'true';
 
-		$result = db_query($this->link, "SELECT DISTINCT
+		$result = $this->dbh->query("SELECT DISTINCT
 			ttrss_user_prefs.pref_name,value,type_name,
 			ttrss_prefs_sections.order_id,
 			def_value,section_id
@@ -511,7 +505,7 @@ class Pref_Prefs extends Handler_Protected {
 
 		$listed_boolean_prefs = array();
 
-		while ($line = db_fetch_assoc($result)) {
+		while ($line = $this->dbh->fetch_assoc($result)) {
 
 			if (in_array($line["pref_name"], $prefs_blacklist)) {
 				continue;
@@ -676,8 +670,7 @@ class Pref_Prefs extends Handler_Protected {
 
 		print "<input dojoType=\"dijit.form.TextBox\" style=\"display : none\" name=\"boolean_prefs\" value=\"$listed_boolean_prefs\">";
 
-		global $pluginhost;
-		$pluginhost->run_hooks($pluginhost::HOOK_PREFS_TAB_SECTION,
+		PluginHost::getInstance()->run_hooks(PluginHost::HOOK_PREFS_TAB_SECTION,
 			"hook_prefs_tab_section", "prefPrefsPrefsInside");
 
 		print '</div>'; # inside pane
@@ -713,8 +706,7 @@ class Pref_Prefs extends Handler_Protected {
 				<label for='prefs_show_advanced'>" .
 				__("Show additional preferences") . "</label>"; */
 
-		global $pluginhost;
-		$pluginhost->run_hooks($pluginhost::HOOK_PREFS_TAB_SECTION,
+		PluginHost::getInstance()->run_hooks(PluginHost::HOOK_PREFS_TAB_SECTION,
 			"hook_prefs_tab_section", "prefPrefsPrefsOutside");
 
 		print "</form>";
@@ -765,9 +757,9 @@ class Pref_Prefs extends Handler_Protected {
 				<td width='10%'>".__('Author')."</td></tr>";
 
 		$system_enabled = array_map("trim", explode(",", PLUGINS));
-		$user_enabled = array_map("trim", explode(",", get_pref($this->link, "_ENABLED_PLUGINS")));
+		$user_enabled = array_map("trim", explode(",", get_pref("_ENABLED_PLUGINS")));
 
-		$tmppluginhost = new PluginHost($this->link);
+		$tmppluginhost = new PluginHost(Db::get());
 		$tmppluginhost->load_all($tmppluginhost::KIND_ALL, $_SESSION["uid"]);
 		$tmppluginhost->load_data(true);
 
@@ -878,8 +870,7 @@ class Pref_Prefs extends Handler_Protected {
 
 		print "</div>"; #pane
 
-		global $pluginhost;
-		$pluginhost->run_hooks($pluginhost::HOOK_PREFS_TAB,
+		PluginHost::getInstance()->run_hooks(PluginHost::HOOK_PREFS_TAB,
 			"hook_prefs_tab", "prefPrefs");
 
 		print "</div>"; #container
@@ -895,52 +886,67 @@ class Pref_Prefs extends Handler_Protected {
 		require_once "lib/otphp/lib/totp.php";
 		require_once "lib/phpqrcode/phpqrcode.php";
 
-		$result = db_query($this->link, "SELECT login,salt,otp_enabled
+		$result = $this->dbh->query("SELECT login,salt,otp_enabled
 			FROM ttrss_users
 			WHERE id = ".$_SESSION["uid"]);
 
 		$base32 = new Base32();
 
-		$login = db_fetch_result($result, 0, "login");
-		$otp_enabled = sql_bool_to_bool(db_fetch_result($result, 0, "otp_enabled"));
+		$login = $this->dbh->fetch_result($result, 0, "login");
+		$otp_enabled = sql_bool_to_bool($this->dbh->fetch_result($result, 0, "otp_enabled"));
 
 		if (!$otp_enabled) {
-			$secret = $base32->encode(sha1(db_fetch_result($result, 0, "salt")));
+			$secret = $base32->encode(sha1($this->dbh->fetch_result($result, 0, "salt")));
 			$topt = new \OTPHP\TOTP($secret);
 			print QRcode::png($topt->provisioning_uri($login));
 		}
 	}
 
 	function otpenable() {
-		$password = db_escape_string($this->link, $_REQUEST["password"]);
-		$enable_otp = $_REQUEST["enable_otp"] == "on";
+		require_once "lib/otphp/vendor/base32.php";
+		require_once "lib/otphp/lib/otp.php";
+		require_once "lib/otphp/lib/totp.php";
 
-		global $pluginhost;
-		$authenticator = $pluginhost->get_plugin($_SESSION["auth_module"]);
+		$password = $_REQUEST["password"];
+		$otp = $_REQUEST["otp"];
+
+		$authenticator = PluginHost::getInstance()->get_plugin($_SESSION["auth_module"]);
 
 		if ($authenticator->check_password($_SESSION["uid"], $password)) {
 
-			if ($enable_otp) {
-				db_query($this->link, "UPDATE ttrss_users SET otp_enabled = true WHERE
+			$result = $this->dbh->query("SELECT salt
+				FROM ttrss_users
+				WHERE id = ".$_SESSION["uid"]);
+
+			$base32 = new Base32();
+
+			$secret = $base32->encode(sha1($this->dbh->fetch_result($result, 0, "salt")));
+			$topt = new \OTPHP\TOTP($secret);
+
+			$otp_check = $topt->now();
+
+			if ($otp == $otp_check) {
+				$this->dbh->query("UPDATE ttrss_users SET otp_enabled = true WHERE
 					id = " . $_SESSION["uid"]);
 
 				print "OK";
+			} else {
+				print "ERROR:".__("Incorrect one time password");
 			}
 		} else {
-			print "ERROR: ".__("Incorrect password");
+			print "ERROR:".__("Incorrect password");
 		}
 
 	}
 
 	function otpdisable() {
-		$password = db_escape_string($this->link, $_REQUEST["password"]);
+		$password = $this->dbh->escape_string($_REQUEST["password"]);
 
-		global $pluginhost;
-		$authenticator = $pluginhost->get_plugin($_SESSION["auth_module"]);
+		$authenticator = PluginHost::getInstance()->get_plugin($_SESSION["auth_module"]);
 
 		if ($authenticator->check_password($_SESSION["uid"], $password)) {
 
-			db_query($this->link, "UPDATE ttrss_users SET otp_enabled = false WHERE
+			$this->dbh->query("UPDATE ttrss_users SET otp_enabled = false WHERE
 				id = " . $_SESSION["uid"]);
 
 			print "OK";
@@ -956,18 +962,17 @@ class Pref_Prefs extends Handler_Protected {
 		else
 			$plugins = "";
 
-		set_pref($this->link, "_ENABLED_PLUGINS", $plugins);
+		set_pref("_ENABLED_PLUGINS", $plugins);
 	}
 
 	function clearplugindata() {
-		$name = db_escape_string($this->link, $_REQUEST["name"]);
+		$name = $this->dbh->escape_string($_REQUEST["name"]);
 
-		global $pluginhost;
-		$pluginhost->clear_data($pluginhost->get_plugin($name));
+		PluginHost::getInstance()->clear_data(PluginHost::getInstance()->get_plugin($name));
 	}
 
 	function customizeCSS() {
-		$value = get_pref($this->link, "USER_STYLESHEET");
+		$value = get_pref("USER_STYLESHEET");
 
 		$value = str_replace("<br/>", "\n", $value);
 
@@ -1015,7 +1020,7 @@ class Pref_Prefs extends Handler_Protected {
 
 		print "</div>";
 
-		$result = db_query($this->link, "SELECT title,id FROM ttrss_settings_profiles
+		$result = $this->dbh->query("SELECT title,id FROM ttrss_settings_profiles
 			WHERE owner_uid = ".$_SESSION["uid"]." ORDER BY title");
 
 		print "<div class=\"prefProfileHolder\">";
@@ -1046,7 +1051,7 @@ class Pref_Prefs extends Handler_Protected {
 
 		$lnum = 1;
 
-		while ($line = db_fetch_assoc($result)) {
+		while ($line = $this->dbh->fetch_assoc($result)) {
 
 			$class = ($lnum % 2) ? "even" : "odd";
 

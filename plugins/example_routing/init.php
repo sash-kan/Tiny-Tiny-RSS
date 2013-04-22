@@ -12,7 +12,6 @@ class Example_Routing extends Plugin implements IHandler {
 	// Any system method may be masked by plugins. You can mask
 	// entire handler by supplying "*" instead of a method name.
 
-	private $link;
 	private $host;
 
 	function about() {
@@ -23,7 +22,6 @@ class Example_Routing extends Plugin implements IHandler {
 	}
 
 	function init($host) {
-		$this->link = $host->get_link();
 		$this->host = $host;
 
 		$host->add_handler("test", "example", $this);
@@ -48,6 +46,10 @@ class Example_Routing extends Plugin implements IHandler {
 
 	function after() {
 		return true;
+	}
+
+	function api_version() {
+		return 2;
 	}
 
 }

@@ -21,7 +21,7 @@
 		return $url_path;
 	}
 
-	function initial_sanity_check($link) {
+	function initial_sanity_check() {
 
 		$errors = array();
 
@@ -67,6 +67,14 @@
 				array_push($errors, "Javascript cache is not writable (chmod -R 777 ".CACHE_DIR."/js)");
 			}
 
+			if (strlen(FEED_CRYPT_KEY) > 0 && strlen(FEED_CRYPT_KEY) != 24) {
+				array_push($errors, "FEED_CRYPT_KEY should be exactly 24 characters in length.");
+			}
+
+			if (strlen(FEED_CRYPT_KEY) > 0 && !function_exists("mcrypt_decrypt")) {
+				array_push($errors, "FEED_CRYPT_KEY requires mcrypt functions which are not found.");
+			}
+
 			if (GENERATED_CONFIG_CHECK != EXPECTED_CONFIG_VERSION) {
 				array_push($errors,
 					"Configuration option checker sanity_config.php is outdated, please recreate it using ./utils/regen_config_checks.sh");
@@ -80,14 +88,10 @@
 			}
 
 			if (SINGLE_USER_MODE) {
-				$link = db_connect(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+				$result = db_query("SELECT id FROM ttrss_users WHERE id = 1");
 
-				if ($link) {
-					$result = db_query($link, "SELECT id FROM ttrss_users WHERE id = 1");
-
-					if (db_num_rows($result) != 1) {
-						array_push($errors, "SINGLE_USER_MODE is enabled in config.php but default admin account is not found.");
-					}
+				if (db_num_rows($result) != 1) {
+					array_push($errors, "SINGLE_USER_MODE is enabled in config.php but default admin account is not found.");
 				}
 			}
 
@@ -114,7 +118,7 @@
 				array_push($errors, "PHP support for JSON is required, but was not found.");
 			}
 
-			if (DB_TYPE == "mysql" && !function_exists("mysql_connect")) {
+			if (DB_TYPE == "mysql" && !function_exists("mysql_connect") && !function_exists("mysqli_connect")) {
 				array_push($errors, "PHP support for MySQL is required for configured DB_TYPE in config.php.");
 			}
 
@@ -194,6 +198,6 @@
 		}
 	}
 
-	initial_sanity_check($link);
+	initial_sanity_check();
 
 ?>

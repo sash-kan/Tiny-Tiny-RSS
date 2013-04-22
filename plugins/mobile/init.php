@@ -1,7 +1,5 @@
 <?php
 class Mobile extends Plugin implements IHandler {
-
-	private $link;
 	private $host;
 
 	function about() {
@@ -12,7 +10,6 @@ class Mobile extends Plugin implements IHandler {
 	}
 
 	function init($host) {
-		$this->link = $host->get_link();
 		$this->host = $host;
 
 		$host->add_handler("mobile", "index", $this);
@@ -40,6 +37,9 @@ class Mobile extends Plugin implements IHandler {
 
 	}
 
+	function api_version() {
+		return 2;
+	}
 
 }
 ?>

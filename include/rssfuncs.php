@@ -1,7 +1,7 @@
 <?php
-	define('DAEMON_UPDATE_LOGIN_LIMIT', 30);
-	define('DAEMON_FEED_LIMIT', 100);
-	define('DAEMON_SLEEP_INTERVAL', 60);
+	define_default('DAEMON_UPDATE_LOGIN_LIMIT', 30);
+	define_default('DAEMON_FEED_LIMIT', 500);
+	define_default('DAEMON_SLEEP_INTERVAL', 120);
 
 	function update_feedbrowser_cache() {
 
@@ -104,19 +104,16 @@
 
 		// Test if feed is currently being updated by another process.
 		if (DB_TYPE == "pgsql") {
-			$updstart_thresh_qpart = "AND (ttrss_feeds.last_update_started IS NULL OR ttrss_feeds.last_update_started < NOW() - INTERVAL '5 minutes')";
+			$updstart_thresh_qpart = "AND (ttrss_feeds.last_update_started IS NULL OR ttrss_feeds.last_update_started < NOW() - INTERVAL '10 minutes')";
 		} else {
-			$updstart_thresh_qpart = "AND (ttrss_feeds.last_update_started IS NULL OR ttrss_feeds.last_update_started < DATE_SUB(NOW(), INTERVAL 5 MINUTE))";
+			$updstart_thresh_qpart = "AND (ttrss_feeds.last_update_started IS NULL OR ttrss_feeds.last_update_started < DATE_SUB(NOW(), INTERVAL 10 MINUTE))";
 		}
 
 		// Test if there is a limit to number of updated feeds
 		$query_limit = "";
 		if($limit) $query_limit = sprintf("LIMIT %d", $limit);
 
-		$random_qpart = sql_random_function();
-
-		// We search for feed needing update.
-		$result = db_query("SELECT DISTINCT ttrss_feeds.feed_url,$random_qpart
+		$query = "SELECT DISTINCT ttrss_feeds.feed_url, ttrss_feeds.last_updated
 			FROM
 				ttrss_feeds, ttrss_users, ttrss_user_prefs
 			WHERE
@@ -125,7 +122,10 @@
 				AND ttrss_user_prefs.pref_name = 'DEFAULT_UPDATE_INTERVAL'
 				$login_thresh_qpart $update_limit_qpart
 				$updstart_thresh_qpart
-			ORDER BY $random_qpart $query_limit");
+				ORDER BY last_updated $query_limit";
+
+		// We search for feed needing update.
+		$result = db_query($query);
 
 		if($debug) _debug(sprintf("Scheduled %d feeds to update...", db_num_rows($result)));
 
@@ -150,10 +150,6 @@
 				WHERE feed_url IN (%s)", implode(',', $feeds_quoted)));
 		}
 
-		expire_cached_files($debug);
-		expire_lock_files($debug);
-		expire_error_log($debug);
-
 		$nf = 0;
 
 		// For each feed, we call the feed update function.
@@ -164,7 +160,7 @@
 
 			// since we have the data cached, we can deal with other feeds with the same url
 
-			$tmp_result = db_query("SELECT DISTINCT ttrss_feeds.id,last_updated
+			$tmp_result = db_query("SELECT DISTINCT ttrss_feeds.id,last_updated,ttrss_feeds.owner_uid
 			FROM ttrss_feeds, ttrss_users, ttrss_user_prefs WHERE
 				ttrss_user_prefs.owner_uid = ttrss_feeds.owner_uid AND
 				ttrss_users.id = ttrss_user_prefs.owner_uid AND
@@ -177,7 +173,7 @@
 
 			if (db_num_rows($tmp_result) > 0) {
 				while ($tline = db_fetch_assoc($tmp_result)) {
-					if($debug) _debug(" => " . $tline["last_updated"] . ", " . $tline["id"]);
+					if($debug) _debug(" => " . $tline["last_updated"] . ", " . $tline["id"] . " " . $tline["owner_uid"]);
 					update_rss_feed($tline["id"], true);
 					++$nf;
 				}
@@ -197,8 +193,6 @@
 	function update_rss_feed($feed, $ignore_daemon = false, $no_cache = false,
 		$override_url = false) {
 
-		require_once "lib/simplepie/simplepie.inc";
-
 		$debug_enabled = defined('DAEMON_EXTENDED_DEBUG') || $_REQUEST['xdebug'];
 
 		_debug("start", $debug_enabled);
@@ -206,7 +200,9 @@
 		$result = db_query("SELECT id,update_interval,auth_login,
 			feed_url,auth_pass,cache_images,last_updated,
 			mark_unread_on_update, owner_uid,
-			pubsub_state, auth_pass_encrypted
+			pubsub_state, auth_pass_encrypted,
+			(SELECT max(date_entered) FROM
+				ttrss_entries, ttrss_user_entries where ref_id = id AND feed_id = '$feed') AS last_article_timestamp
 			FROM ttrss_feeds WHERE id = '$feed'");
 
 		if (db_num_rows($result) == 0) {
@@ -215,6 +211,11 @@
 		}
 
 		$last_updated = db_fetch_result($result, 0, "last_updated");
+		$last_article_timestamp = @strtotime(db_fetch_result($result, 0, "last_article_timestamp"));
+
+		if (defined('_DISABLE_HTTP_304'))
+			$last_article_timestamp = 0;
+
 		$owner_uid = db_fetch_result($result, 0, "owner_uid");
 		$mark_unread_on_update = sql_bool_to_bool(db_fetch_result($result,
 			0, "mark_unread_on_update"));
@@ -242,53 +243,41 @@
 
 		$date_feed_processed = date('Y-m-d H:i');
 
-		$cache_filename = CACHE_DIR . "/simplepie/" . sha1($fetch_url) . ".feed";
-
-		// Ignore cache if new feed or manual update.
-		$cache_age = ($no_cache || is_null($last_updated) || $last_updated == '1970-01-01 00:00:00') ?
-			30 : get_feed_update_interval($feed) * 60;
-
-		_debug("cache filename: $cache_filename exists: " . file_exists($cache_filename), $debug_enabled);
-		_debug("cache age: $cache_age; no cache: $no_cache", $debug_enabled);
-
-		$cached_feed_data_hash = false;
+		$cache_filename = CACHE_DIR . "/simplepie/" . sha1($fetch_url) . ".xml";
 
 		$rss = false;
 		$rss_hash = false;
 		$cache_timestamp = file_exists($cache_filename) ? filemtime($cache_filename) : 0;
-		$last_updated_timestamp = strtotime($last_updated);
 
 		$force_refetch = isset($_REQUEST["force_refetch"]);
 
 		if (file_exists($cache_filename) &&
 			is_readable($cache_filename) &&
 			!$auth_login && !$auth_pass &&
-			filemtime($cache_filename) > time() - $cache_age) {
+			filemtime($cache_filename) > time() - 30) {
 
-				_debug("using local cache.", $debug_enabled);
+			_debug("using local cache.", $debug_enabled);
 
-				if ($cache_timestamp > $last_updated_timestamp) {
-					@$rss_data = file_get_contents($cache_filename);
+			@$feed_data = file_get_contents($cache_filename);
 
-					if ($rss_data) {
-						$rss_hash = sha1($rss_data);
-						@$rss = unserialize($rss_data);
-					}
-				} else if (!$force_refetch) {
-					_debug("local cache valid and older than last_updated, nothing to do.", $debug_enabled);
-					return;
-				}
+			if ($feed_data) {
+				$rss_hash = sha1($feed_data);
+			}
+
+		} else {
+			_debug("local cache will not be used for this feed", $debug_enabled);
 		}
 
 		if (!$rss) {
 
 			if (!$feed_data) {
-				_debug("fetching [$fetch_url] (ts: $cache_timestamp/$last_updated_timestamp)", $debug_enabled);
+				_debug("fetching [$fetch_url]...", $debug_enabled);
+				_debug("If-Modified-Since: ".gmdate('D, d M Y H:i:s \G\M\T', $last_article_timestamp), $debug_enabled);
 
 				$feed_data = fetch_file_contents($fetch_url, false,
 					$auth_login, $auth_pass, false,
 					$no_cache ? FEED_FETCH_NO_CACHE_TIMEOUT : FEED_FETCH_TIMEOUT,
-					$force_refetch ? 0 : max($last_updated_timestamp, $cache_timestamp));
+					$force_refetch ? 0 : $last_article_timestamp);
 
 				global $fetch_curl_used;
 
@@ -356,17 +345,13 @@
 			$feed_data = $plugin->hook_feed_fetched($feed_data);
 		}
 
-		if (!$rss) {
-			$rss = new SimplePie();
-			$rss->set_sanitize_class("SanitizeDummy");
-			// simplepie ignores the above and creates default sanitizer anyway,
-			// so let's override it...
-			$rss->sanitize = new SanitizeDummy();
-			$rss->set_output_encoding('UTF-8');
-			$rss->set_raw_data($feed_data);
-			$rss->enable_cache(false);
+		// set last update to now so if anything *simplepie* crashes later we won't be
+		// continuously failing on the same feed
+		//db_query("UPDATE ttrss_feeds SET last_updated = NOW() WHERE id = '$feed'");
 
-			@$rss->init();
+		if (!$rss) {
+			$rss = new FeedParser($feed_data);
+			$rss->init();
 		}
 
 //		print_r($rss);
@@ -377,12 +362,11 @@
 
 			// cache data for later
 			if (!$auth_pass && !$auth_login && is_writable(CACHE_DIR . "/simplepie")) {
-				$rss_data = serialize($rss);
 				$new_rss_hash = sha1($rss_data);
 
-				if ($new_rss_hash != $rss_hash) {
+				if ($new_rss_hash != $rss_hash && count($rss->get_items()) > 0 ) {
 					_debug("saving $cache_filename", $debug_enabled);
-					@file_put_contents($cache_filename, serialize($rss));
+					@file_put_contents($cache_filename, $feed_data);
 				}
 			}
 
@@ -399,7 +383,7 @@
 				$favicon_interval_qpart = "favicon_last_checked < DATE_SUB(NOW(), INTERVAL 12 HOUR)";
 			}
 
-			$result = db_query("SELECT title,site_url,owner_uid,
+			$result = db_query("SELECT title,site_url,owner_uid,favicon_avg_color,
 				(favicon_last_checked IS NULL OR $favicon_interval_qpart) AS
 						favicon_needs_check
 				FROM ttrss_feeds WHERE id = '$feed'");
@@ -408,24 +392,43 @@
 			$orig_site_url = db_fetch_result($result, 0, "site_url");
 			$favicon_needs_check = sql_bool_to_bool(db_fetch_result($result, 0,
 				"favicon_needs_check"));
+			$favicon_avg_color = db_fetch_result($result, 0, "favicon_avg_color");
 
 			$owner_uid = db_fetch_result($result, 0, "owner_uid");
 
 			$site_url = db_escape_string(mb_substr(rewrite_relative_url($fetch_url, $rss->get_link()), 0, 245));
 
+			_debug("site_url: $site_url", $debug_enabled);
+			_debug("feed_title: " . $rss->get_title(), $debug_enabled);
+
 			if ($favicon_needs_check || $force_refetch) {
+
+				/* terrible hack: if we crash on floicon shit here, we won't check
+				 * the icon avgcolor again (unless the icon got updated) */
+
+				$favicon_file = ICONS_DIR . "/$feed.ico";
+				$favicon_modified = @filemtime($favicon_file);
+
 				_debug("checking favicon...", $debug_enabled);
 
 				check_feed_favicon($site_url, $feed, $link);
-				$favicon_file = ICONS_DIR . "/$feed.ico";
+				$favicon_modified_new = @filemtime($favicon_file);
 
-				if (file_exists($favicon_file) && function_exists("imagecreatefromstring")) {
+				if ($favicon_modified_new > $favicon_modified)
+					$favicon_avg_color = '';
+
+				if (file_exists($favicon_file) && function_exists("imagecreatefromstring") && $favicon_avg_color == '') {
 						require_once "colors.php";
+
+						db_query("UPDATE ttrss_feeds SET favicon_avg_color = 'fail' WHERE
+							id = '$feed'");
 
 						$favicon_color = db_escape_string(
 							calculate_avg_color($favicon_file));
 
 						$favicon_colorstring = ",favicon_avg_color = '".$favicon_color."'";
+				} else if ($favicon_avg_color == 'fail') {
+					_debug("floicon failed on this file, not trying to recalculate avg color", $debug_enabled);
 				}
 
 				db_query("UPDATE ttrss_feeds SET favicon_last_checked = NOW()
@@ -437,10 +440,12 @@
 
 				$feed_title = db_escape_string($rss->get_title());
 
-				_debug("registering title: $feed_title", $debug_enabled);
+				if ($feed_title) {
+					_debug("registering title: $feed_title", $debug_enabled);
 
-				db_query("UPDATE ttrss_feeds SET
-					title = '$feed_title' WHERE id = '$feed'");
+					db_query("UPDATE ttrss_feeds SET
+						title = '$feed_title' WHERE id = '$feed'");
+				}
 			}
 
 			if ($site_url && $orig_site_url != $site_url) {
@@ -513,6 +518,8 @@
 				if (!$entry_guid) $entry_guid = $item->get_link();
 				if (!$entry_guid) $entry_guid = make_guid_from_title($item->get_title());
 
+				_debug("f_guid $entry_guid", $debug_enabled);
+
 				if (!$entry_guid) continue;
 
 				$entry_guid = "$owner_uid,$entry_guid";
@@ -523,7 +530,9 @@
 
 				$entry_timestamp = "";
 
-				$entry_timestamp = strtotime($item->get_date());
+				$entry_timestamp = $item->get_date();
+
+				_debug("orig date: " . $item->get_date(), $debug_enabled);
 
 				if ($entry_timestamp == -1 || !$entry_timestamp || $entry_timestamp > time()) {
 					$entry_timestamp = time();
@@ -536,7 +545,9 @@
 
 				_debug("date $entry_timestamp [$entry_timestamp_fmt]", $debug_enabled);
 
-				$entry_title = html_entity_decode($item->get_title(), ENT_COMPAT, 'UTF-8');
+//				$entry_title = html_entity_decode($item->get_title(), ENT_COMPAT, 'UTF-8');
+//				$entry_title = decode_numeric_entities($entry_title);
+				$entry_title = $item->get_title();
 
 				$entry_link = rewrite_relative_url($site_url, $item->get_link());
 
@@ -554,30 +565,19 @@
 					print "\n";
 				}
 
-				$entry_comments = $item->data["comments"];
-
-				if ($item->get_author()) {
-					$entry_author_item = $item->get_author();
-					$entry_author = $entry_author_item->get_name();
-					if (!$entry_author) $entry_author = $entry_author_item->get_email();
-				}
+				$entry_comments = $item->get_comments_url();
+				$entry_author = $item->get_author();
 
 				$entry_guid = db_escape_string(mb_substr($entry_guid, 0, 245));
 
 				$entry_comments = db_escape_string(mb_substr(trim($entry_comments), 0, 245));
 				$entry_author = db_escape_string(mb_substr(trim($entry_author), 0, 245));
 
-				$num_comments = $item->get_item_tags('http://purl.org/rss/1.0/modules/slash/', 'comments');
-
-				if (is_array($num_comments) && is_array($num_comments[0])) {
-					$num_comments = (int) $num_comments[0]["data"];
-				} else {
-					$num_comments = 0;
-				}
+				$num_comments = (int) $item->get_comments_count();
 
 				_debug("author $entry_author", $debug_enabled);
 				_debug("num_comments: $num_comments", $debug_enabled);
-				_debug("looking for tags [1]...", $debug_enabled);
+				_debug("looking for tags...", $debug_enabled);
 
 				// parse <category> entries into tags
 
@@ -587,17 +587,16 @@
 
 				if (is_array($additional_tags_src)) {
 					foreach ($additional_tags_src as $tobj) {
-						array_push($additional_tags, $tobj->get_term());
+						array_push($additional_tags, $tobj);
 					}
 				}
-
-				_debug("category tags:", $debug_enabled);
-				_debug("looking for tags [2]...", $debug_enabled);
 
 				$entry_tags = array_unique($additional_tags);
 
 				for ($i = 0; $i < count($entry_tags); $i++)
 					$entry_tags[$i] = mb_strtolower($entry_tags[$i], 'utf-8');
+
+				_debug("tags found: " . join(",", $entry_tags), $debug_enabled);
 
 				_debug("done collecting data.", $debug_enabled);
 
@@ -1150,7 +1149,7 @@
 	}
 
 	function expire_lock_files($debug) {
-		if ($debug) _debug("Removing old lock files...");
+		//if ($debug) _debug("Removing old lock files...");
 
 		$num_deleted = 0;
 
@@ -1167,14 +1166,14 @@
 			}
 		}
 
-		if ($debug) _debug("Removed $num_deleted files.");
+		if ($debug) _debug("Removed $num_deleted old lock files.");
 	}
 
 	function expire_cached_files($debug) {
 		foreach (array("simplepie", "images", "export", "upload") as $dir) {
 			$cache_dir = CACHE_DIR . "/$dir";
 
-			if ($debug) _debug("Expiring $cache_dir");
+//			if ($debug) _debug("Expiring $cache_dir");
 
 			$num_deleted = 0;
 
@@ -1192,7 +1191,7 @@
 				}
 			}
 
-			if ($debug) _debug("Removed $num_deleted files.");
+			if ($debug) _debug("$cache_dir: removed $num_deleted files.");
 		}
 	}
 
@@ -1226,7 +1225,7 @@
 
 			foreach ($filter["rules"] as $rule) {
 				$match = false;
-				$reg_exp = $rule["reg_exp"];
+				$reg_exp = str_replace('/', '\/', $rule["reg_exp"]);
 				$rule_inverse = $rule["inverse"];
 
 				if (!$reg_exp)
@@ -1255,8 +1254,12 @@
 					$match = @preg_match("/$reg_exp/i", $author);
 					break;
 				case "tag":
-					$tag_string = join(",", $tags);
-					$match = @preg_match("/$reg_exp/i", $tag_string);
+					foreach ($tags as $tag) {
+						if (@preg_match("/$reg_exp/i", $tag)) {
+							$match = true;
+							break;
+						}
+					}
 					break;
 				}
 
@@ -1355,4 +1358,17 @@
 		return $error;
 	}
 
+	function housekeeping_common($debug) {
+		expire_cached_files($debug);
+		expire_lock_files($debug);
+		expire_error_log($debug);
+
+		$count = update_feedbrowser_cache();
+		_debug("Feedbrowser updated, $count feeds processed.");
+
+		purge_orphans( true);
+		$rc = cleanup_tags( 14, 50000);
+
+		_debug("Cleaned $rc cached tags.");
+	}
 ?>

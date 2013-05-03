@@ -1,9 +1,11 @@
 <?php
 	define('EXPECTED_CONFIG_VERSION', 26);
-	define('SCHEMA_VERSION', 118);
+	define('SCHEMA_VERSION', 120);
 
 	define('LABEL_BASE_INDEX', -1024);
 	define('PLUGIN_FEED_BASE_INDEX', -128);
+
+	define('COOKIE_LIFETIME_LONG', 86400*365);
 
 	$fetch_last_error = false;
 	$fetch_last_error_code = false;
@@ -95,8 +97,12 @@
 			$lang = _TRANSLATION_OVERRIDE_DEFAULT;
 		}
 
-		if ($_SESSION["language"] && $_SESSION["language"] != "auto") {
-			$lang = $_SESSION["language"];
+		if ($_SESSION["uid"] && get_schema_version() >= 120) {
+			$pref_lang = get_pref("USER_LANGUAGE", $_SESSION["uid"]);
+
+			if ($pref_lang) {
+				$lang = $pref_lang;
+			}
 		}
 
 		if ($lang) {
@@ -113,8 +119,6 @@
 		}
 	}
 
-	startup_gettext();
-
 	require_once 'db-prefs.php';
 	require_once 'version.php';
 	require_once 'ccache.php';
@@ -125,8 +129,6 @@
 
 	require_once 'lib/pubsubhubbub/publisher.php';
 
-	$tz_offset = -1;
-	$utc_tz = new DateTimeZone('UTC');
 	$schema_version = false;
 
 	/**
@@ -320,7 +322,7 @@
 				$ch = curl_init($url);
 			}
 
-			if ($timestamp) {
+			if ($timestamp && !$post_query) {
 				curl_setopt($ch, CURLOPT_HTTPHEADER,
 					array("If-Modified-Since: ".gmdate('D, d M Y H:i:s \G\M\T', $timestamp)));
 			}
@@ -407,7 +409,7 @@
 			$data = @file_get_contents($url, false, $context);
 
 			$fetch_last_content_type = false;  // reset if no type was sent from server
-			if (is_array($http_response_header)) {
+			if (isset($http_response_header) && is_array($http_response_header)) {
 				foreach ($http_response_header as $h) {
 					if (substr(strtolower($h), 0, 13) == 'content-type:') {
 						$fetch_last_content_type = substr($h, 14);
@@ -659,7 +661,7 @@
 				@session_start();
 
 				$_SESSION["uid"] = $user_id;
-				$_SESSION["version"] = VERSION;
+				$_SESSION["version"] = VERSION_STATIC;
 
 				$result = db_query("SELECT login,access_level,pwd_hash FROM ttrss_users
 					WHERE id = '$user_id'");
@@ -795,12 +797,8 @@
 				$_SESSION["last_login_update"] = time();
 			}
 
-			if ($_SESSION["uid"] && $_SESSION["language"] && SESSION_COOKIE_LIFETIME > 0) {
-				setcookie("ttrss_lang", $_SESSION["language"],
-					time() + SESSION_COOKIE_LIFETIME);
-			}
-
 			if ($_SESSION["uid"]) {
+				startup_gettext();
 				load_user_plugins($_SESSION["uid"]);
 
 				/* cleanup ccache */
@@ -853,22 +851,28 @@
 		if (!$timestamp) $timestamp = '1970-01-01 0:00';
 
 		global $utc_tz;
-		global $tz_offset;
+		global $user_tz;
+
+		if (!$utc_tz) $utc_tz = new DateTimeZone('UTC');
+
+		$timestamp = substr($timestamp, 0, 19);
 
 		# We store date in UTC internally
 		$dt = new DateTime($timestamp, $utc_tz);
 
-		if ($tz_offset == -1) {
+		$user_tz_string = get_pref('USER_TIMEZONE', $owner_uid);
 
-			$user_tz_string = get_pref('USER_TIMEZONE', $owner_uid);
+		if ($user_tz_string != 'Automatic') {
 
 			try {
-				$user_tz = new DateTimeZone($user_tz_string);
+				if (!$user_tz) $user_tz = new DateTimeZone($user_tz_string);
 			} catch (Exception $e) {
 				$user_tz = $utc_tz;
 			}
 
 			$tz_offset = $user_tz->getOffset($dt);
+		} else {
+			$tz_offset = (int) -$_SESSION["clientTzOffset"];
 		}
 
 		$user_timestamp = $dt->format('U') + $tz_offset;
@@ -922,7 +926,7 @@
 	function get_schema_version($nocache = false) {
 		global $schema_version;
 
-		if (!$schema_version) {
+		if (!$schema_version && !$nocache) {
 			$result = db_query("SELECT schema_version FROM ttrss_version");
 			$version = db_fetch_result($result, 0, "schema_version");
 			$schema_version = $version;
@@ -2535,12 +2539,13 @@
 					$feed_title = getCategoryTitle($feed);
 				} else {
 					if (is_numeric($feed) && $feed > 0) {
-						$result = db_query("SELECT title,site_url,last_error
+						$result = db_query("SELECT title,site_url,last_error,last_updated
 							FROM ttrss_feeds WHERE id = '$feed' AND owner_uid = $owner_uid");
 
 						$feed_title = db_fetch_result($result, 0, "title");
 						$feed_site_url = db_fetch_result($result, 0, "site_url");
 						$last_error = db_fetch_result($result, 0, "last_error");
+						$last_updated = db_fetch_result($result, 0, "last_updated");
 					} else {
 						$feed_title = getFeedTitle($feed);
 					}
@@ -2688,7 +2693,7 @@
 				$result = db_query($select_qpart . $from_qpart . $where_qpart);
 			}
 
-			return array($result, $feed_title, $feed_site_url, $last_error);
+			return array($result, $feed_title, $feed_site_url, $last_error, $last_updated);
 
 	}
 
@@ -2798,7 +2803,8 @@
 	}
 
 	function strip_harmful_tags($doc, $allowed_elements, $disallowed_attributes) {
-		$entries = $doc->getElementsByTagName("*");
+		$xpath = new DOMXPath($doc);
+		$entries = $xpath->query('//*');
 
 		foreach ($entries as $entry) {
 			if (!in_array($entry->nodeName, $allowed_elements)) {
@@ -2896,7 +2902,6 @@
 			ttrss_tags WHERE post_int_id = (SELECT int_id FROM ttrss_user_entries WHERE
 			ref_id = '$a_id' AND owner_uid = '$owner_uid' LIMIT 1) ORDER BY tag_name";
 
-		$obj_id = md5("TAGS:$owner_uid:$id");
 		$tags = array();
 
 		/* check cache first */
@@ -3243,7 +3248,7 @@
 
 	function print_checkpoint($n, $s) {
 		$ts = microtime(true);
-		echo sprintf("<!-- CP[$n] %.4f seconds -->", $ts - $s);
+		echo sprintf("<!-- CP[$n] %.4f seconds -->\n", $ts - $s);
 		return $ts;
 	}
 
@@ -3386,52 +3391,27 @@
 	}
 
 	function format_tags_string($tags, $id) {
+		if (!is_array($tags) || count($tags) == 0) {
+			return __("no tags");
+		} else {
+			$maxtags = min(5, count($tags));
 
-		$tags_str = "";
-		$tags_nolinks_str = "";
-
-		$num_tags = 0;
-
-		$tag_limit = 6;
-
-		$formatted_tags = array();
-
-		foreach ($tags as $tag) {
-			$num_tags++;
-			$tag_escaped = str_replace("'", "\\'", $tag);
-
-			if (mb_strlen($tag) > 30) {
-				$tag = truncate_string($tag, 30);
+			for ($i = 0; $i < $maxtags; $i++) {
+				$tags_str .= "<a href=\"#\" onclick=\"viewfeed('".$tags[$i]."'\")>" . $tags[$i] . "</a>, ";
 			}
 
-			$tag_str = "<a href=\"javascript:viewfeed('$tag_escaped')\">$tag</a>";
+			$tags_str = mb_substr($tags_str, 0, mb_strlen($tags_str)-2);
 
-			array_push($formatted_tags, $tag_str);
+			if (count($tags) > $maxtags)
+				$tags_str .= ", &hellip;";
 
-			$tmp_tags_str = implode(", ", $formatted_tags);
-
-			if ($num_tags == $tag_limit || mb_strlen($tmp_tags_str) > 150) {
-				break;
-			}
+			return $tags_str;
 		}
-
-		$tags_str = implode(", ", $formatted_tags);
-
-		if ($num_tags < count($tags)) {
-			$tags_str .= ", &hellip;";
-		}
-
-		if ($num_tags == 0) {
-			$tags_str = __("no tags");
-		}
-
-		return $tags_str;
-
 	}
 
 	function format_article_labels($labels, $id) {
 
-		if (is_array($labels)) return '';
+		if (!is_array($labels)) return '';
 
 		$labels_str = "";
 

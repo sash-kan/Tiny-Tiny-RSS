@@ -54,12 +54,14 @@ class Pref_Feeds extends Handler_Protected {
 			$cat['type'] = 'category';
 			$cat['unread'] = 0;
 			$cat['child_unread'] = 0;
+			$cat['auxcounter'] = 0;
 
 			$cat['items'] = $this->get_category_items($line['id']);
 
-			$cat['param'] = vsprintf(_ngettext('(%d feed)', '(%d feeds)', count($cat['items'])), count($cat['items']));
+			$num_children = $this->calculate_children_count($cat);
+			$cat['param'] = vsprintf(_ngettext('(%d feed)', '(%d feeds)', $num_children), $num_children);
 
-			if (count($cat['items']) > 0 || $show_empty_cats)
+			if ($num_children > 0 || $show_empty_cats)
 				array_push($items, $cat);
 
 		}
@@ -74,6 +76,7 @@ class Pref_Feeds extends Handler_Protected {
 			$feed = array();
 			$feed['id'] = 'FEED:' . $feed_line['id'];
 			$feed['bare_id'] = (int)$feed_line['id'];
+			$feed['auxcounter'] = 0;
 			$feed['name'] = $feed_line['title'];
 			$feed['checkbox'] = false;
 			$feed['unread'] = 0;
@@ -132,6 +135,7 @@ class Pref_Feeds extends Handler_Protected {
 					$item = array();
 					$item['id'] = 'FEED:' . $feed_id;
 					$item['bare_id'] = (int)$feed_id;
+					$item['auxcounter'] = 0;
 					$item['name'] = $feed['title'];
 					$item['checkbox'] = false;
 					$item['error'] = '';
@@ -193,6 +197,7 @@ class Pref_Feeds extends Handler_Protected {
 				$cat = array();
 				$cat['id'] = 'CAT:' . $line['id'];
 				$cat['bare_id'] = (int)$line['id'];
+				$cat['auxcounter'] = 0;
 				$cat['name'] = $line['title'];
 				$cat['items'] = array();
 				$cat['checkbox'] = false;
@@ -202,9 +207,10 @@ class Pref_Feeds extends Handler_Protected {
 
 				$cat['items'] = $this->get_category_items($line['id']);
 
-				$cat['param'] = vsprintf(_ngettext('(%d feed)', '(%d feeds)', count($cat['items'])), count($cat['items']));
+				$num_children = $this->calculate_children_count($cat);
+				$cat['param'] = vsprintf(_ngettext('(%d feed)', '(%d feeds)', $num_children), $num_children);
 
-				if (count($cat['items']) > 0 || $show_empty_cats)
+				if ($num_children > 0 || $show_empty_cats)
 					array_push($root['items'], $cat);
 
 				$root['param'] += count($cat['items']);
@@ -215,6 +221,7 @@ class Pref_Feeds extends Handler_Protected {
 			$cat = array();
 			$cat['id'] = 'CAT:0';
 			$cat['bare_id'] = 0;
+			$cat['auxcounter'] = 0;
 			$cat['name'] = __("Uncategorized");
 			$cat['items'] = array();
 			$cat['type'] = 'category';
@@ -232,6 +239,7 @@ class Pref_Feeds extends Handler_Protected {
 				$feed = array();
 				$feed['id'] = 'FEED:' . $feed_line['id'];
 				$feed['bare_id'] = (int)$feed_line['id'];
+				$feed['auxcounter'] = 0;
 				$feed['name'] = $feed_line['title'];
 				$feed['checkbox'] = false;
 				$feed['error'] = $feed_line['last_error'];
@@ -249,8 +257,8 @@ class Pref_Feeds extends Handler_Protected {
 			if (count($cat['items']) > 0 || $show_empty_cats)
 				array_push($root['items'], $cat);
 
-			$root['param'] += count($cat['items']);
-			$root['param'] = vsprintf(_ngettext('(%d feed)', '(%d feeds)', count($cat['items'])), count($cat['items']));
+			$num_children = $this->calculate_children_count($root);
+			$root['param'] = vsprintf(_ngettext('(%d feed)', '(%d feeds)', $num_children), $num_children);
 
 		} else {
 			$feed_result = $this->dbh->query("SELECT id, title, last_error,
@@ -263,6 +271,7 @@ class Pref_Feeds extends Handler_Protected {
 				$feed = array();
 				$feed['id'] = 'FEED:' . $feed_line['id'];
 				$feed['bare_id'] = (int)$feed_line['id'];
+				$feed['auxcounter'] = 0;
 				$feed['name'] = $feed_line['title'];
 				$feed['checkbox'] = false;
 				$feed['error'] = $feed_line['last_error'];
@@ -1408,9 +1417,7 @@ class Pref_Feeds extends Handler_Protected {
 
 		print "<div dojoType=\"dijit.layout.AccordionPane\" title=\"".__('OPML')."\">";
 
-		print "<p>" . __("Using OPML you can export and import your feeds, filters, labels and Tiny Tiny RSS settings.") . " ";
-
-		print __("Only main settings profile can be migrated using OPML.") . "</p>";
+		print_notice(__("Using OPML you can export and import your feeds, filters, labels and Tiny Tiny RSS settings.") . __("Only main settings profile can be migrated using OPML."));
 
 		print "<iframe id=\"upload_iframe\"
 			name=\"upload_iframe\" onload=\"opmlImportComplete(this)\"
@@ -1453,7 +1460,7 @@ class Pref_Feeds extends Handler_Protected {
 
 			print "<div dojoType=\"dijit.layout.AccordionPane\" title=\"".__('Firefox integration')."\">";
 
-			print "<p>" . __('This Tiny Tiny RSS site can be used as a Firefox Feed Reader by clicking the link below.') . "</p>";
+			print_notice(__('This Tiny Tiny RSS site can be used as a Firefox Feed Reader by clicking the link below.'));
 
 			print "<p>";
 
@@ -1470,12 +1477,12 @@ class Pref_Feeds extends Handler_Protected {
 
 		print "<div dojoType=\"dijit.layout.AccordionPane\" title=\"".__('Published & shared articles / Generated feeds')."\">";
 
-		print "<h3>" . __("Published articles and generated feeds") . "</h3>";
-
-		print "<p>".__('Published articles are exported as a public RSS feed and can be subscribed by anyone who knows the URL specified below.')."</p>";
+		print_notice(__('Published articles are exported as a public RSS feed and can be subscribed by anyone who knows the URL specified below.'));
 
 		$rss_url = '-2::' . htmlspecialchars(get_self_url_prefix() .
 				"/public.php?op=rss&id=-2&view-mode=all_articles");;
+
+		print "<p>";
 
 		print "<button dojoType=\"dijit.form.Button\" onclick=\"return displayDlg('".__("View as RSS")."','generatedFeed', '$rss_url')\">".
 			__('Display URL')."</button> ";
@@ -1483,12 +1490,16 @@ class Pref_Feeds extends Handler_Protected {
 		print "<button dojoType=\"dijit.form.Button\" onclick=\"return clearFeedAccessKeys()\">".
 			__('Clear all generated URLs')."</button> ";
 
-		print "<h3>" . __("Articles shared by URL") . "</h3>";
+		print "</p>";
 
-		print "<p>" . __("You can disable all articles shared by unique URLs here.") . "</p>";
+		print_warning(__("You can disable all articles shared by unique URLs here."));
+
+		print "<p>";
 
 		print "<button dojoType=\"dijit.form.Button\" onclick=\"return clearArticleAccessKeys()\">".
 			__('Unshare all articles')."</button> ";
+
+		print "</p>";
 
 		PluginHost::getInstance()->run_hooks(PluginHost::HOOK_PREFS_TAB_SECTION,
 			"hook_prefs_tab_section", "prefFeedsPublishedGenerated");
@@ -1539,6 +1550,7 @@ class Pref_Feeds extends Handler_Protected {
 		$obj['updated'] = $updated;
 		$obj['icon'] = getFeedIcon($feed_id);
 		$obj['bare_id'] = $feed_id;
+		$obj['auxcounter'] = 0;
 
 		return $obj;
 	}
@@ -1563,7 +1575,7 @@ class Pref_Feeds extends Handler_Protected {
 			GROUP BY ttrss_feeds.title, ttrss_feeds.id, ttrss_feeds.site_url, ttrss_feeds.feed_url
 			ORDER BY last_article");
 
-		print "<h2" .__("These feeds have not been updated with new content for 3 months (oldest first):") . "</h2>";
+		print "<p" .__("These feeds have not been updated with new content for 3 months (oldest first):") . "</p>";
 
 		print "<div dojoType=\"dijit.Toolbar\">";
 		print "<div dojoType=\"dijit.form.DropDownButton\">".
@@ -1628,9 +1640,6 @@ class Pref_Feeds extends Handler_Protected {
 	}
 
 	function feedsWithErrors() {
-		print "<h2>" . __("These feeds have not been updated because of errors:") .
-			"</h2>";
-
 		$result = $this->dbh->query("SELECT id,title,feed_url,last_error,site_url
 		FROM ttrss_feeds WHERE last_error != '' AND owner_uid = ".$_SESSION["uid"]);
 
@@ -1930,6 +1939,19 @@ class Pref_Feeds extends Handler_Protected {
 			owner_uid = " . $_SESSION["uid"]);
 	}
 
+	private function calculate_children_count($cat) {
+		$c = 0;
+
+		foreach ($cat['items'] as $child) {
+			if ($child['type'] == 'category') {
+				$c += $this->calculate_children_count($child);
+			} else {
+				$c += 1;
+			}
+		}
+
+		return $c;
+	}
 
 }
 ?>

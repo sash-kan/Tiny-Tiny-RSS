@@ -40,7 +40,7 @@ class Pref_Prefs extends Handler_Protected {
 			"FRESH_ARTICLE_MAX_AGE" => array(__("Maximum age of fresh articles (in hours)"), ""),
 			"HIDE_READ_FEEDS" => array(__("Hide feeds with no unread articles"), ""),
 			"HIDE_READ_SHOWS_SPECIAL" => array(__("Show special feeds when hiding read feeds"), ""),
-			"LONG_DATE_FORMAT" => array(__("Long date format"), ""),
+			"LONG_DATE_FORMAT" => array(__("Long date format"), __("The syntax used is identical to the PHP <a href='http://php.net/manual/function.date.php'>date()</a> function.")),
 			"ON_CATCHUP_SHOW_NEXT_FEED" => array(__("On catchup show next feed"), __("Automatically open next feed with unread articles after marking one as read")),
 			"PURGE_OLD_DAYS" => array(__("Purge articles after this number of days (0 - disables)"), ""),
 			"PURGE_UNREAD_ARTICLES" => array(__("Purge unread articles"), ""),
@@ -366,7 +366,7 @@ class Pref_Prefs extends Handler_Protected {
 
 				} else if (function_exists("imagecreatefromstring")) {
 
-					print "<p>".__("You will need a compatible Authenticator to use this. Changing your password would automatically disable OTP.") . "</p>";
+					print_warning(__("You will need a compatible Authenticator to use this. Changing your password would automatically disable OTP."));
 
 					print "<p>".__("Scan the following code by the Authenticator application:")."</p>";
 
@@ -705,8 +705,6 @@ class Pref_Prefs extends Handler_Protected {
 
 		print "<div dojoType=\"dijit.layout.AccordionPane\" title=\"".__('Plugins')."\">";
 
-		print "<h2>".__("Plugins")."</h2>";
-
 		print "<p>" . __("You will need to reload Tiny Tiny RSS for plugin changes to take effect.") . "</p>";
 
 		print_notice(__("Download more plugins at tt-rss.org <a class=\"visibleLink\" target=\"_blank\" href=\"http://tt-rss.org/forum/viewforum.php?f=22\">forums</a> or <a target=\"_blank\" class=\"visibleLink\" href=\"http://tt-rss.org/wiki/Plugins\">wiki</a>."));
@@ -964,7 +962,7 @@ class Pref_Prefs extends Handler_Protected {
 
 		$value = str_replace("<br/>", "\n", $value);
 
-		print_notice(T_sprintf("You can override colors, fonts and layout of your currently selected theme with custom CSS declarations here. <a target=\"_blank\" class=\"visibleLink\" href=\"%s\">This file</a> can be used as a baseline.", "tt-rss.css"));
+		print_notice(T_sprintf("You can override colors, fonts and layout of your currently selected theme with custom CSS declarations here. <a target=\"_blank\" class=\"visibleLink\" href=\"%s\">This file</a> can be used as a baseline.", "css/tt-rss.css"));
 
 		print "<input dojoType=\"dijit.form.TextBox\" style=\"display : none\" name=\"op\" value=\"rpc\">";
 		print "<input dojoType=\"dijit.form.TextBox\" style=\"display : none\" name=\"method\" value=\"setpref\">";

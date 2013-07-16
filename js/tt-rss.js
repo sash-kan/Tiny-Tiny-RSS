@@ -272,13 +272,13 @@ function init() {
 				var rv = dijit.byId("feedTree").getNextFeed(
 						getActiveFeedId(), activeFeedIsCat());
 
-				if (rv) viewfeed(rv[0], '', rv[1]);
+				if (rv) viewfeed(rv[0], '', rv[1], null, null, null, true);
 		};
 		hotkey_actions["prev_feed"] = function() {
 				var rv = dijit.byId("feedTree").getPreviousFeed(
 						getActiveFeedId(), activeFeedIsCat());
 
-				if (rv) viewfeed(rv[0], '', rv[1]);
+				if (rv) viewfeed(rv[0], '', rv[1], null, null, null, true);
 		};
 		hotkey_actions["next_article"] = function() {
 				moveToPost('next');
@@ -338,6 +338,9 @@ function init() {
 			}
 		hotkey_actions["dismiss_selected"] = function() {
 				dismissSelectedArticles();
+		};
+		hotkey_actions["dismiss_read"] = function() {
+				dismissReadArticles();
 		};
 		hotkey_actions["open_in_new_window"] = function() {
 				if (getActiveArticleId()) {
@@ -844,11 +847,16 @@ function hotkey_handler(e) {
 
 		var keycode = false;
 		var shift_key = false;
+		var ctrl_key = false;
+		var alt_key = false;
+		var meta_key = false;
 
 		var cmdline = $('cmdline');
 
 		shift_key = e.shiftKey;
 		ctrl_key = e.ctrlKey;
+		alt_key = e.altKey;
+		meta_key = e.metaKey;
 
 		if (window.event) {
 			keycode = window.event.keyCode;
@@ -890,6 +898,8 @@ function hotkey_handler(e) {
 		// ensure ^*char notation
 		if (shift_key) hotkey = "*" + hotkey;
 		if (ctrl_key) hotkey = "^" + hotkey;
+		if (alt_key) hotkey = "+" + hotkey;
+		if (meta_key) hotkey = "%" + hotkey;
 
 		hotkey = hotkey_prefix ? hotkey_prefix + " " + hotkey : hotkey;
 		hotkey_prefix = false;
